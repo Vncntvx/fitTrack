@@ -1,0 +1,2356 @@
+openapi: 3.1.0
+info:
+  title: FitTrack LAN API
+  description: |
+    FitTrack 运动追踪应用局域网 HTTP API。Android 设备作为服务器端，向 Web 端提供 RESTful API 接口用于访问和管理运动数据。
+
+    ## 认证
+    API 支持可选的令牌认证。当配置了访问令牌后，所有 `/api/*` 路径需要认证。
+
+    支持三种认证方式（优先级从高到低）：
+    1. `Authorization: Bearer <token>` 请求头
+    2. `X-FitTrack-Token: <token>` 自定义请求头
+    3. `?token=<token>` URL 查询参数
+
+    ## 跨域支持
+    API 自动包含 CORS 响应头，支持浏览器跨域访问。
+  version: 1.0.0
+  contact:
+    name: FitTrack Team
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: http://{host}:{port}
+    description: 局域网服务器
+    variables:
+      host:
+        default: 192.168.1.100
+        description: Android 设备 IP 地址
+      port:
+        default: '8080'
+        description: 服务端口号
+
+security:
+  - bearerAuth: []
+  - tokenHeader: []
+  - tokenQuery: []
+
+paths:
+  # ==================== 系统接口 ====================
+  /health:
+    get:
+      summary: 健康检查
+      description: 检查服务器运行状态，无需认证
+      security: []
+      responses:
+        '200':
+          description: 服务正常
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  # ==================== 训练记录接口 ====================
+  /api/workouts:
+    get:
+      summary: 获取所有训练记录
+      description: 获取所有训练会话列表
+      tags:
+        - 训练记录
+      responses:
+        '200':
+          description: 成功获取训练记录列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrainingSession'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: 创建训练记录
+      description: 创建新的训练会话
+      tags:
+        - 训练记录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTrainingSessionRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/workouts/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 训练记录 ID
+
+    get:
+      summary: 获取单个训练记录
+      description: 获取指定 ID 的训练记录详情
+      tags:
+        - 训练记录
+      responses:
+        '200':
+          description: 成功获取训练记录
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      summary: 更新训练记录
+      description: 更新指定 ID 的训练记录
+      tags:
+        - 训练记录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTrainingSessionRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: 删除训练记录
+      description: 删除指定 ID 的训练记录（级联删除关联详情）
+      tags:
+        - 训练记录
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/stats:
+    get:
+      summary: 获取训练统计
+      description: 获取训练统计数据
+      tags:
+        - 训练记录
+      responses:
+        '200':
+          description: 成功获取统计数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingStats'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ==================== 动作库接口 ====================
+  /api/exercises:
+    get:
+      summary: 获取所有动作
+      description: 获取动作库列表，支持按分类过滤
+      tags:
+        - 动作库
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [chest, back, shoulders, arms, legs, core, full_body, cardio]
+          description: 动作分类过滤
+      responses:
+        '200':
+          description: 成功获取动作列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Exercise'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: 创建动作
+      description: 创建新动作到动作库
+      tags:
+        - 动作库
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExerciseRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/exercises/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 动作 ID
+
+    get:
+      summary: 获取单个动作
+      description: 获取指定 ID 的动作详情
+      tags:
+        - 动作库
+      responses:
+        '200':
+          description: 成功获取动作
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exercise'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      summary: 更新动作
+      description: 更新指定 ID 的动作
+      tags:
+        - 动作库
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateExerciseRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: 删除动作
+      description: 删除指定 ID 的动作
+      tags:
+        - 动作库
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: 动作存在引用无法删除
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/exercises/bulk-delete:
+    post:
+      summary: 批量删除动作
+      description: 批量删除多个动作
+      tags:
+        - 动作库
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeleteRequest'
+      responses:
+        '200':
+          description: 批量删除完成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkDeleteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/exercises/import:
+    post:
+      summary: 导入动作
+      description: 从 JSON 导入动作
+      tags:
+        - 动作库
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportExercisesRequest'
+      responses:
+        '200':
+          description: 导入完成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/exercises/export:
+    get:
+      summary: 导出动作
+      description: 导出所有动作为 JSON
+      tags:
+        - 动作库
+      responses:
+        '200':
+          description: 成功导出
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportExercisesResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ==================== 训练模板接口 ====================
+  /api/templates:
+    get:
+      summary: 获取所有模板
+      description: 获取训练模板列表
+      tags:
+        - 训练模板
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [strength, running, swimming]
+          description: 模板类型过滤
+      responses:
+        '200':
+          description: 成功获取模板列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkoutTemplate'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: 创建模板
+      description: 创建新的训练模板
+      tags:
+        - 训练模板
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTemplateRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/templates/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 模板 ID
+
+    get:
+      summary: 获取模板详情
+      description: 获取指定 ID 的模板详情（包含动作列表）
+      tags:
+        - 训练模板
+      responses:
+        '200':
+          description: 成功获取模板详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      summary: 更新模板
+      description: 更新指定 ID 的模板
+      tags:
+        - 训练模板
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTemplateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: 删除模板
+      description: 删除指定 ID 的模板
+      tags:
+        - 训练模板
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/templates/{id}/exercises:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 模板 ID
+
+    post:
+      summary: 添加模板动作
+      description: 向模板添加动作
+      tags:
+        - 训练模板
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddTemplateExerciseRequest'
+      responses:
+        '200':
+          description: 添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/templates/exercises/{exerciseId}:
+    parameters:
+      - name: exerciseId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 模板动作 ID
+
+    delete:
+      summary: 删除模板动作
+      description: 从模板中删除动作
+      tags:
+        - 训练模板
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ==================== 个人记录接口 ====================
+  /api/pr:
+    get:
+      summary: 获取所有 PR
+      description: 获取所有个人记录
+      tags:
+        - 个人记录
+      responses:
+        '200':
+          description: 成功获取 PR 列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PersonalRecord'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/pr/{type}:
+    parameters:
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [strength_1rm, strength_volume, running_distance, running_pace, swimming_distance]
+        description: 记录类型
+
+    get:
+      summary: 按类型获取 PR
+      description: 获取指定类型的个人记录
+      tags:
+        - 个人记录
+      responses:
+        '200':
+          description: 成功获取 PR 列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PersonalRecord'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/pr/exercise/{exerciseId}:
+    parameters:
+      - name: exerciseId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 动作 ID
+
+    get:
+      summary: 获取动作 PR 历史
+      description: 获取指定动作的 PR 历史记录
+      tags:
+        - 个人记录
+      responses:
+        '200':
+          description: 成功获取 PR 历史
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PersonalRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/pr/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: PR ID
+
+    delete:
+      summary: 删除 PR
+      description: PR 是派生数据，禁止直接删除
+      tags:
+        - 个人记录
+      responses:
+        '400':
+          description: 禁止删除
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== 跑步记录接口 ====================
+  /api/running:
+    get:
+      summary: 获取所有跑步记录
+      description: 获取所有跑步训练记录
+      tags:
+        - 跑步记录
+      responses:
+        '200':
+          description: 成功获取跑步记录列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RunningEntry'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/running/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 跑步记录 ID
+
+    get:
+      summary: 获取单个跑步记录
+      description: 获取指定 ID 的跑步记录
+      tags:
+        - 跑步记录
+      responses:
+        '200':
+          description: 成功获取跑步记录
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunningEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/running/{id}/splits:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 跑步记录 ID
+
+    get:
+      summary: 获取跑步分段
+      description: 获取指定跑步记录的分段数据
+      tags:
+        - 跑步记录
+      responses:
+        '200':
+          description: 成功获取分段数据
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RunningSplit'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/running/stats:
+    get:
+      summary: 获取跑步统计
+      description: 获取跑步统计数据
+      tags:
+        - 跑步记录
+      responses:
+        '200':
+          description: 成功获取统计数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunningStats'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ==================== 游泳记录接口 ====================
+  /api/swimming:
+    get:
+      summary: 获取所有游泳记录
+      description: 获取所有游泳训练记录
+      tags:
+        - 游泳记录
+      responses:
+        '200':
+          description: 成功获取游泳记录列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SwimmingEntry'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/swimming/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 游泳记录 ID
+
+    get:
+      summary: 获取单个游泳记录
+      description: 获取指定 ID 的游泳记录
+      tags:
+        - 游泳记录
+      responses:
+        '200':
+          description: 成功获取游泳记录
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SwimmingEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/swimming/{id}/sets:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 游泳记录 ID
+
+    get:
+      summary: 获取游泳分组
+      description: 获取指定游泳记录的分组数据
+      tags:
+        - 游泳记录
+      responses:
+        '200':
+          description: 成功获取分组数据
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SwimmingSet'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/swimming/stats:
+    get:
+      summary: 获取游泳统计
+      description: 获取游泳统计数据
+      tags:
+        - 游泳记录
+      responses:
+        '200':
+          description: 成功获取统计数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SwimmingStats'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ==================== 力量训练接口 ====================
+  /api/strength/{sessionId}:
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 训练会话 ID
+
+    get:
+      summary: 获取力量训练详情
+      description: 获取指定会话的力量训练详情
+      tags:
+        - 力量训练
+      responses:
+        '200':
+          description: 成功获取力量训练详情
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StrengthEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: 添加力量训练动作
+      description: 向指定会话添加力量训练动作
+      tags:
+        - 力量训练
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStrengthEntryRequest'
+      responses:
+        '200':
+          description: 添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/strength/entry/{entryId}:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 力量训练条目 ID
+
+    put:
+      summary: 更新力量训练动作
+      description: 更新指定 ID 的力量训练动作
+      tags:
+        - 力量训练
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStrengthEntryRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: 删除力量训练动作
+      description: 删除指定 ID 的力量训练动作
+      tags:
+        - 力量训练
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ==================== 设置接口 ====================
+  /api/settings:
+    get:
+      summary: 获取设置
+      description: 获取用户设置
+      tags:
+        - 设置
+      responses:
+        '200':
+          description: 成功获取设置
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSettings'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      summary: 更新设置
+      description: 更新用户设置
+      tags:
+        - 设置
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSettingsRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ==================== 备份接口 ====================
+  /api/backup-configs:
+    get:
+      summary: 获取备份配置
+      description: 获取所有备份配置
+      tags:
+        - 备份
+      responses:
+        '200':
+          description: 成功获取配置列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BackupConfiguration'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: 创建备份配置
+      description: 创建新的备份配置
+      tags:
+        - 备份
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBackupConfigRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/backup-configs/default:
+    get:
+      summary: 获取默认配置
+      description: 获取默认备份配置
+      tags:
+        - 备份
+      responses:
+        '200':
+          description: 成功获取默认配置
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupConfiguration'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/backup-configs/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 配置 ID
+
+    delete:
+      summary: 删除备份配置
+      description: 删除指定 ID 的备份配置
+      tags:
+        - 备份
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/backup:
+    post:
+      summary: 执行备份（默认配置）
+      description: 使用默认配置执行备份
+      tags:
+        - 备份
+      responses:
+        '200':
+          description: 备份成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupResult'
+        '404':
+          description: 未找到备份配置
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/backup/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 配置 ID
+
+    post:
+      summary: 执行备份（指定配置）
+      description: 使用指定配置执行备份
+      tags:
+        - 备份
+      responses:
+        '200':
+          description: 备份成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupResult'
+        '404':
+          description: 未找到备份配置
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/backup-records:
+    get:
+      summary: 获取备份记录
+      description: 获取备份记录列表
+      tags:
+        - 备份
+      parameters:
+        - name: configId
+          in: query
+          schema:
+            type: integer
+          description: 按配置 ID 过滤
+      responses:
+        '200':
+          description: 成功获取备份记录
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BackupRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/restore:
+    post:
+      summary: 恢复数据
+      description: 从备份记录恢复数据
+      tags:
+        - 备份
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreRequest'
+      responses:
+        '200':
+          description: 恢复成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ==================== 批量操作接口 ====================
+  /api/bulk/workouts/delete:
+    post:
+      summary: 批量删除训练
+      description: 批量删除训练记录
+      tags:
+        - 批量操作
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeleteRequest'
+      responses:
+        '200':
+          description: 批量删除完成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkDeleteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/bulk/workouts/update:
+    post:
+      summary: 批量更新训练
+      description: 批量更新训练记录
+      tags:
+        - 批量操作
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdateWorkoutsRequest'
+      responses:
+        '200':
+          description: 批量更新完成
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated:
+                    type: integer
+                  requested:
+                    type: integer
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ==================== 导入导出接口 ====================
+  /api/export/json:
+    get:
+      summary: 导出 JSON
+      description: 导出完整数据为 JSON
+      tags:
+        - 导入导出
+      responses:
+        '200':
+          description: 导出成功
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 完整数据导出
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/export/csv:
+    get:
+      summary: 导出 CSV
+      description: 导出训练记录为 CSV
+      tags:
+        - 导入导出
+      responses:
+        '200':
+          description: 导出成功
+          content:
+            text/csv:
+              schema:
+                type: string
+                description: CSV 格式的训练记录
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/import/json:
+    post:
+      summary: 导入 JSON
+      description: 从 JSON 导入完整数据
+      tags:
+        - 导入导出
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: 完整数据
+      responses:
+        '200':
+          description: 导入成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  # ==================== 安全方案 ====================
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Bearer Token 认证
+    tokenHeader:
+      type: apiKey
+      in: header
+      name: X-FitTrack-Token
+      description: 自定义 Token 请求头
+    tokenQuery:
+      type: apiKey
+      in: query
+      name: token
+      description: URL Token 参数
+
+  # ==================== 响应定义 ====================
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== 数据模型 ====================
+  schemas:
+    # ----- 基础响应 -----
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+          example: '2024-01-15T08:30:00.000Z'
+
+    SuccessResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: 'Updated successfully'
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: 'Invalid ID'
+        hint:
+          type: string
+          example: 'Use Authorization: Bearer <token> or ?token=<token>'
+
+    CreateResponse:
+      type: object
+      required:
+        - id
+        - message
+      properties:
+        id:
+          type: integer
+          example: 1
+        message:
+          type: string
+          example: 'Created successfully'
+
+    # ----- 训练记录 -----
+    TrainingSession:
+      type: object
+      required:
+        - id
+        - datetime
+        - type
+        - durationMinutes
+        - intensity
+        - isGoalCompleted
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        datetime:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum: [strength, running, swimming, cycling, jump_rope, walking, yoga, stretching, custom]
+        durationMinutes:
+          type: integer
+          minimum: 1
+        intensity:
+          type: string
+          enum: [light, moderate, high]
+        note:
+          type: string
+          nullable: true
+        isGoalCompleted:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateTrainingSessionRequest:
+      type: object
+      required:
+        - datetime
+        - type
+        - durationMinutes
+        - intensity
+      properties:
+        datetime:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum: [strength, running, swimming, cycling, jump_rope, walking, yoga, stretching, custom]
+        durationMinutes:
+          type: integer
+          minimum: 1
+        intensity:
+          type: string
+          enum: [light, moderate, high]
+        note:
+          type: string
+        isGoalCompleted:
+          type: boolean
+          default: false
+
+    UpdateTrainingSessionRequest:
+      type: object
+      properties:
+        datetime:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum: [strength, running, swimming, cycling, jump_rope, walking, yoga, stretching, custom]
+        durationMinutes:
+          type: integer
+          minimum: 1
+        intensity:
+          type: string
+          enum: [light, moderate, high]
+        note:
+          type: string
+        isGoalCompleted:
+          type: boolean
+
+    TrainingStats:
+      type: object
+      properties:
+        workoutDaysThisWeek:
+          type: integer
+        totalMinutesThisWeek:
+          type: integer
+        currentStreak:
+          type: integer
+        mostFrequentType:
+          type: string
+          nullable: true
+        weeklyCount:
+          type: integer
+        totalMinutes:
+          type: integer
+        weeklyMinutes:
+          type: integer
+        totalWorkouts:
+          type: integer
+        avgIntensity:
+          type: string
+
+    # ----- 动作库 -----
+    Exercise:
+      type: object
+      required:
+        - id
+        - name
+        - category
+        - movementType
+        - isCustom
+        - isEnabled
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+          enum: [chest, back, shoulders, arms, legs, core, full_body, cardio]
+        movementType:
+          type: string
+          enum: [compound, isolation]
+        primaryMuscles:
+          type: string
+          nullable: true
+        secondaryMuscles:
+          type: string
+          nullable: true
+        defaultSets:
+          type: integer
+        defaultReps:
+          type: integer
+        defaultWeight:
+          type: number
+          nullable: true
+        isCustom:
+          type: boolean
+        isEnabled:
+          type: boolean
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateExerciseRequest:
+      type: object
+      required:
+        - name
+        - category
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+          enum: [chest, back, shoulders, arms, legs, core, full_body, cardio]
+        movementType:
+          type: string
+          enum: [compound, isolation]
+          default: compound
+        primaryMuscles:
+          type: string
+        secondaryMuscles:
+          type: string
+        defaultSets:
+          type: integer
+          default: 3
+        defaultReps:
+          type: integer
+          default: 10
+        defaultWeight:
+          type: number
+        description:
+          type: string
+
+    UpdateExerciseRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+          enum: [chest, back, shoulders, arms, legs, core, full_body, cardio]
+        movementType:
+          type: string
+          enum: [compound, isolation]
+        primaryMuscles:
+          type: string
+        secondaryMuscles:
+          type: string
+        defaultSets:
+          type: integer
+        defaultReps:
+          type: integer
+        defaultWeight:
+          type: number
+        isEnabled:
+          type: boolean
+        description:
+          type: string
+
+    ImportExercisesRequest:
+      type: object
+      required:
+        - exercises
+      properties:
+        exercises:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              category:
+                type: string
+              movementType:
+                type: string
+              primaryMuscles:
+                type: string
+              secondaryMuscles:
+                type: string
+              defaultSets:
+                type: integer
+              defaultReps:
+                type: integer
+              defaultWeight:
+                type: number
+              description:
+                type: string
+
+    ExportExercisesResponse:
+      type: object
+      properties:
+        exportDate:
+          type: string
+          format: date-time
+        count:
+          type: integer
+        exercises:
+          type: array
+          items:
+            $ref: '#/components/schemas/Exercise'
+
+    # ----- 训练模板 -----
+    WorkoutTemplate:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - isDefault
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [strength, running, swimming]
+        description:
+          type: string
+          nullable: true
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TemplateDetail:
+      type: object
+      properties:
+        template:
+          $ref: '#/components/schemas/WorkoutTemplate'
+        exercises:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateExercise'
+
+    TemplateExercise:
+      type: object
+      required:
+        - id
+        - templateId
+        - exerciseName
+        - sets
+        - reps
+        - sortOrder
+      properties:
+        id:
+          type: integer
+        templateId:
+          type: integer
+        exerciseId:
+          type: integer
+          nullable: true
+        exerciseName:
+          type: string
+        sets:
+          type: integer
+        reps:
+          type: integer
+        weight:
+          type: number
+          nullable: true
+        sortOrder:
+          type: integer
+
+    CreateTemplateRequest:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [strength, running, swimming]
+        description:
+          type: string
+        isDefault:
+          type: boolean
+          default: false
+        exercises:
+          type: array
+          items:
+            type: object
+            properties:
+              exerciseId:
+                type: integer
+              exerciseName:
+                type: string
+              sets:
+                type: integer
+                default: 3
+              reps:
+                type: integer
+                default: 10
+              weight:
+                type: number
+
+    UpdateTemplateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [strength, running, swimming]
+        description:
+          type: string
+        isDefault:
+          type: boolean
+
+    AddTemplateExerciseRequest:
+      type: object
+      required:
+        - exerciseName
+      properties:
+        exerciseId:
+          type: integer
+        exerciseName:
+          type: string
+        sets:
+          type: integer
+          default: 3
+        reps:
+          type: integer
+          default: 10
+        weight:
+          type: number
+        sortOrder:
+          type: integer
+          default: 0
+
+    # ----- 个人记录 -----
+    PersonalRecord:
+      type: object
+      required:
+        - id
+        - recordType
+        - value
+        - unit
+        - achievedAt
+      properties:
+        id:
+          type: integer
+        recordType:
+          type: string
+          enum: [strength_1rm, strength_volume, running_distance, running_pace, swimming_distance]
+        exerciseId:
+          type: integer
+          nullable: true
+        value:
+          type: number
+        unit:
+          type: string
+          enum: [kg, meters, seconds]
+        achievedAt:
+          type: string
+          format: date-time
+        sessionId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    # ----- 跑步记录 -----
+    RunningEntry:
+      type: object
+      required:
+        - id
+        - sessionId
+        - runType
+        - distanceMeters
+        - durationSeconds
+        - avgPaceSeconds
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        runType:
+          type: string
+          enum: [easy, tempo, interval, lsd, recovery, race]
+        distanceMeters:
+          type: number
+        durationSeconds:
+          type: integer
+        avgPaceSeconds:
+          type: integer
+        bestPaceSeconds:
+          type: integer
+          nullable: true
+        avgHeartRate:
+          type: integer
+          nullable: true
+        maxHeartRate:
+          type: integer
+          nullable: true
+        avgCadence:
+          type: integer
+          nullable: true
+        maxCadence:
+          type: integer
+          nullable: true
+        elevationGain:
+          type: number
+          nullable: true
+        elevationLoss:
+          type: number
+          nullable: true
+        footwear:
+          type: string
+          nullable: true
+        weatherJson:
+          type: string
+          nullable: true
+
+    RunningSplit:
+      type: object
+      required:
+        - id
+        - runningEntryId
+        - splitNumber
+        - distanceMeters
+        - durationSeconds
+        - paceSeconds
+      properties:
+        id:
+          type: integer
+        runningEntryId:
+          type: integer
+        splitNumber:
+          type: integer
+        distanceMeters:
+          type: number
+        durationSeconds:
+          type: integer
+        paceSeconds:
+          type: integer
+        avgHeartRate:
+          type: integer
+          nullable: true
+        cadence:
+          type: integer
+          nullable: true
+        elevationGain:
+          type: number
+          nullable: true
+        isManual:
+          type: boolean
+
+    RunningStats:
+      type: object
+      properties:
+        totalRuns:
+          type: integer
+        totalDistanceMeters:
+          type: number
+        totalDurationSeconds:
+          type: integer
+        weeklyDistanceMeters:
+          type: number
+        monthlyDistanceMeters:
+          type: number
+
+    # ----- 游泳记录 -----
+    SwimmingEntry:
+      type: object
+      required:
+        - id
+        - sessionId
+        - environment
+        - primaryStroke
+        - distanceMeters
+        - durationSeconds
+        - pacePer100m
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        environment:
+          type: string
+          enum: [pool, open_water]
+        poolLengthMeters:
+          type: integer
+          nullable: true
+        primaryStroke:
+          type: string
+          enum: [freestyle, breaststroke, backstroke, butterfly, mixed]
+        distanceMeters:
+          type: number
+        durationSeconds:
+          type: integer
+        pacePer100m:
+          type: integer
+        trainingType:
+          type: string
+          enum: [technique, endurance, speed, recovery]
+          nullable: true
+        equipment:
+          type: string
+          nullable: true
+
+    SwimmingSet:
+      type: object
+      required:
+        - id
+        - swimmingEntryId
+        - setType
+        - distanceMeters
+        - durationSeconds
+        - sortOrder
+      properties:
+        id:
+          type: integer
+        swimmingEntryId:
+          type: integer
+        setType:
+          type: string
+          enum: [warmup, main, cooldown]
+        description:
+          type: string
+          nullable: true
+        distanceMeters:
+          type: number
+        durationSeconds:
+          type: integer
+        sortOrder:
+          type: integer
+
+    SwimmingStats:
+      type: object
+      properties:
+        totalSwims:
+          type: integer
+        totalDistanceMeters:
+          type: number
+        totalDurationSeconds:
+          type: integer
+        weeklyDistanceMeters:
+          type: number
+        monthlyDistanceMeters:
+          type: number
+
+    # ----- 力量训练 -----
+    StrengthEntry:
+      type: object
+      required:
+        - id
+        - sessionId
+        - exerciseName
+        - sets
+        - defaultReps
+        - isWarmup
+        - sortOrder
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        exerciseId:
+          type: integer
+          nullable: true
+        exerciseName:
+          type: string
+        sets:
+          type: integer
+        defaultReps:
+          type: integer
+        defaultWeight:
+          type: number
+          nullable: true
+        repsPerSet:
+          type: string
+          nullable: true
+          description: JSON 数组字符串，如 "[10, 8, 6]"
+        weightPerSet:
+          type: string
+          nullable: true
+          description: JSON 数组字符串，如 "[60.0, 65.0, 70.0]"
+        setCompleted:
+          type: string
+          nullable: true
+          description: JSON 数组字符串，如 "[true, true, false]"
+        isWarmup:
+          type: boolean
+        rpe:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 10
+        restSeconds:
+          type: integer
+          nullable: true
+        sortOrder:
+          type: integer
+        note:
+          type: string
+          nullable: true
+
+    CreateStrengthEntryRequest:
+      type: object
+      required:
+        - exerciseName
+      properties:
+        exerciseId:
+          type: integer
+        exerciseName:
+          type: string
+        sets:
+          type: integer
+          default: 3
+        defaultReps:
+          type: integer
+          default: 10
+        defaultWeight:
+          type: number
+        repsPerSet:
+          type: string
+        weightPerSet:
+          type: string
+        setCompleted:
+          type: string
+        isWarmup:
+          type: boolean
+          default: false
+        rpe:
+          type: integer
+          minimum: 1
+          maximum: 10
+        restSeconds:
+          type: integer
+        note:
+          type: string
+        sortOrder:
+          type: integer
+          default: 0
+
+    UpdateStrengthEntryRequest:
+      type: object
+      properties:
+        exerciseName:
+          type: string
+        sets:
+          type: integer
+        defaultReps:
+          type: integer
+        defaultWeight:
+          type: number
+        repsPerSet:
+          type: string
+        weightPerSet:
+          type: string
+        setCompleted:
+          type: string
+        isWarmup:
+          type: boolean
+        rpe:
+          type: integer
+          minimum: 1
+          maximum: 10
+        restSeconds:
+          type: integer
+        note:
+          type: string
+
+    # ----- 设置 -----
+    UserSettings:
+      type: object
+      required:
+        - id
+        - weeklyWorkoutDaysGoal
+        - weeklyWorkoutMinutesGoal
+        - themeMode
+        - weightUnit
+        - distanceUnit
+        - lanServiceEnabled
+        - lanServicePort
+        - lanServiceTokenEnabled
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        weeklyWorkoutDaysGoal:
+          type: integer
+        weeklyWorkoutMinutesGoal:
+          type: integer
+        themeMode:
+          type: string
+          enum: [light, dark, system]
+        weightUnit:
+          type: string
+          enum: [kg, lbs]
+        distanceUnit:
+          type: string
+          enum: [meters, km, miles]
+        lanServiceEnabled:
+          type: boolean
+        lanServicePort:
+          type: integer
+        lanServiceTokenEnabled:
+          type: boolean
+        defaultBackupConfigId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpdateSettingsRequest:
+      type: object
+      properties:
+        weeklyWorkoutDaysGoal:
+          type: integer
+        weeklyWorkoutMinutesGoal:
+          type: integer
+        themeMode:
+          type: string
+          enum: [light, dark, system]
+        weightUnit:
+          type: string
+          enum: [kg, lbs]
+        distanceUnit:
+          type: string
+          enum: [meters, km, miles]
+        lanServiceEnabled:
+          type: boolean
+        lanServicePort:
+          type: integer
+
+    # ----- 备份 -----
+    BackupConfiguration:
+      type: object
+      required:
+        - id
+        - providerType
+        - displayName
+        - endpoint
+        - isDefault
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        providerType:
+          type: string
+          enum: [webdav, s3]
+        displayName:
+          type: string
+        endpoint:
+          type: string
+        bucketOrPath:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateBackupConfigRequest:
+      type: object
+      required:
+        - providerType
+        - displayName
+        - endpoint
+      properties:
+        providerType:
+          type: string
+          enum: [webdav, s3]
+        displayName:
+          type: string
+        endpoint:
+          type: string
+        path:
+          type: string
+        bucket:
+          type: string
+        region:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        accessKey:
+          type: string
+        secretKey:
+          type: string
+        isDefault:
+          type: boolean
+          default: false
+
+    BackupRecord:
+      type: object
+      required:
+        - id
+        - configId
+        - providerType
+        - targetPath
+        - createdAt
+        - status
+      properties:
+        id:
+          type: integer
+        configId:
+          type: integer
+        providerType:
+          type: string
+          enum: [webdav, s3]
+        targetPath:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        checksum:
+          type: string
+          nullable: true
+        metadataJson:
+          type: string
+          nullable: true
+
+    BackupResult:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+        path:
+          type: string
+          nullable: true
+        checksum:
+          type: string
+          nullable: true
+
+    RestoreRequest:
+      type: object
+      required:
+        - recordId
+      properties:
+        recordId:
+          type: integer
+
+    # ----- 批量操作 -----
+    BulkDeleteRequest:
+      type: object
+      required:
+        - ids
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+
+    BulkDeleteResponse:
+      type: object
+      properties:
+        deleted:
+          type: integer
+        requested:
+          type: integer
+        message:
+          type: string
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              success:
+                type: boolean
+              result:
+                type: string
+
+    BulkUpdateWorkoutsRequest:
+      type: object
+      required:
+        - updates
+      properties:
+        updates:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              datetime:
+                type: string
+                format: date-time
+              type:
+                type: string
+              durationMinutes:
+                type: integer
+              intensity:
+                type: string
+              note:
+                type: string
+              isGoalCompleted:
+                type: boolean
+
+    # ----- 导入导出 -----
+    ImportResponse:
+      type: object
+      properties:
+        imported:
+          type: integer
+        skipped:
+          type: integer
+        message:
+          type: string
